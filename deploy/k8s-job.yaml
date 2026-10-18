@@ -9,7 +9,7 @@
 # - Page cache is node-wide in k8s: the working set counts against the
 #   NODE's RAM, not the pod limit
 # - resources: fio+psync is light; this is plenty for the score scenario
-# - disk: score needs ~450 GB free on the mounted volume
+# - disk: the working set defaults to 2x node RAM; give the volume headroom
 apiVersion: batch/v1
 kind: Job
 metadata:

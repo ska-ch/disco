@@ -1,10 +1,10 @@
 # disco — FULL SCORE RUN on ceph-corbo-rbd-nvme (RBD block storage)
 # Namespace: io500benchmark. Context: g-d (or gornergrat-tds-fqdn via ela).
 #
-# Runs the scored capability benchmark: 8 byte-dominant DSC phases, ~190 GB
-# read working set (96+48+72+...), ~450 GB transient on disk, ~15 min at
-# RATE_MULT=25, then prints the score.py table (weighted composite,
-# per-phase headroom, predicted full-DSC runtime) in the job log.
+# Runs the scored capability benchmark: 8 byte-dominant DSC phases, working
+# set sized automatically to 2x the node RAM (~30 GB on the 16 GiB nodes),
+# then prints the score.py table (weighted composite, per-phase headroom,
+# predicted full-DSC runtime) in the job log.
 #
 # Reproduce:
 #   kubectl --context g-d -n io500benchmark delete job disco --ignore-not-found
@@ -15,7 +15,6 @@
 # Variants (edit env / args before applying):
 #   JOBS=8          multi-stream check (readers on disjoint regions)
 #   scale:          last arg of run-scenario.sh (1.0 = full size)
-#   RATE_MULT:      score defaults to 25; set higher/lower as needed
 #   Other storageclasses: change storageClassName (PVC below) — reuse the
 #   existing disco-data PVC only if it uses the same class; for a
 #   different class create a new PVC (or delete + recreate this one).
