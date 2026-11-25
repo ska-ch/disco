@@ -5,9 +5,11 @@
 #   ./run-scenario.sh score [workdir] [scale]
 #
 #   workdir:  directory on the storage under test (default: ./disco-data)
-#   scale:    omitted (default) = read working set of 2x the node's RAM — the
-#             minimum for cold-cache readings; "full" = 1.0 (real dataset
-#             sizes); a number = that fraction of the full DSC size
+#   scale:    omitted (default) = read working set of 2x the effective page
+#             cache (the smaller of the host RAM and the pod cgroup memory
+#             limit), the minimum for cold-cache readings; "full" = 1.0
+#             (real dataset sizes); a number = that fraction of the full
+#             DSC size
 #
 # Env vars:
 #   JOBS=N           reader concurrency for the major-cycle phase
@@ -95,16 +97,27 @@ phase() {
   done
 }
 
-# SCALE=auto (the default): target a read working set of 2x node RAM — the
-# minimum for cold-cache readings (see README). Reads host MemTotal from
-# /proc/meminfo, so it works in a tenant pod without host knob access; no
-# drop_caches/O_DIRECT needed.
+# SCALE=auto (the default): target a read working set of 2x the effective
+# page cache — the minimum for cold-cache readings (see README). The cache
+# of a container is charged to its own cgroup, so its ceiling is the smaller
+# of the host RAM (/proc/meminfo) and the pod's cgroup memory limit
+# (/sys/fs/cgroup/memory.max). Sizing from the host RAM alone oversizes the
+# working set on large hosts with small pod limits. cgroup v1 hosts fall
+# back to the host RAM.
 if [ "$SCALE" = "auto" ]; then
   FULL_READ_GIB=190   # ~96+48+72 GiB files + image/QA
   [ -r /proc/meminfo ] || { echo "SCALE=auto requires /proc/meminfo (Linux)" >&2; exit 1; }
   MEM_KIB=$(awk '/^MemTotal:/{print $2}' /proc/meminfo)
-  SCALE=$(python3 -c "import sys; print(round(max(float(sys.argv[1])/1048576*2/float(sys.argv[2]),0.15),3))" "$MEM_KIB" "$FULL_READ_GIB")
-  echo "=== SCALE=auto: node MemTotal $((MEM_KIB/1024)) MiB -> scale $SCALE (read set = 2x RAM)"
+  CACHE_KIB=$MEM_KIB
+  if [ -r /sys/fs/cgroup/memory.max ]; then
+    CG_MAX=$(cat /sys/fs/cgroup/memory.max)
+    if [ "$CG_MAX" != "max" ]; then
+      CG_KIB=$(( CG_MAX / 1024 ))
+      if [ "$CG_KIB" -lt "$CACHE_KIB" ]; then CACHE_KIB=$CG_KIB; fi
+    fi
+  fi
+  SCALE=$(python3 -c "import sys; print(round(max(float(sys.argv[1])/1048576*2/float(sys.argv[2]),0.15),3))" "$CACHE_KIB" "$FULL_READ_GIB")
+  echo "=== SCALE=auto: host MemTotal $((MEM_KIB/1024)) MiB, effective cache $((CACHE_KIB/1024)) MiB -> scale $SCALE (read set = 2x cache)"
 fi
 
 # the reference parameter set (sizes in GiB, times in s)

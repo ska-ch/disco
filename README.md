@@ -214,11 +214,13 @@ single-stream and multi-stream on parallel-friendly filesystems.
 `10-smallfiles` — these are all 8, so `PHASES` only ever narrows the run.
 
 `scale` (the third argument) is omitted by default: the read working set
-is sized to 2× the node's RAM automatically — read from `/proc/meminfo`,
-floored at 0.15 — so the benchmark is always cold-cache without manual
-guessing. On the 16 GiB gornergrat nodes that resolves to ~0.16 (a
-~30 GB set). Pass `full` for the real dataset sizes (1.0), or a number
-for that fraction of the full DSC size.
+is sized to 2× the effective page cache automatically, floored at 0.15,
+so the benchmark is always cold-cache without manual guessing. The
+effective cache is the smaller of the host RAM and the pod's cgroup
+memory limit, because a container's page cache is charged to its own
+cgroup. On the gornergrat pods (16 GiB host, 8 GiB pod limit) that
+resolves to the 0.15 floor, a ~28 GB set. Pass `full` for the real
+dataset sizes (1.0), or a number for that fraction of the full DSC size.
 
 `MAXTIME=SECONDS` puts a watchdog on every phase: one that runs longer
 than this is killed and reported as failed, instead of hanging the whole

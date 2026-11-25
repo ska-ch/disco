@@ -2,7 +2,8 @@
 # Namespace: io500benchmark. Context: g-d (or gornergrat-tds-fqdn via ela).
 #
 # Runs the scored capability benchmark: 8 byte-dominant DSC phases, working
-# set sized automatically to 2x the node RAM (~30 GB on the 16 GiB nodes),
+# set sized automatically to 2x the effective page cache (the smaller of
+# host RAM and the pod cgroup memory limit, floored to ~28 GB here),
 # then prints the score.py table (weighted composite, per-phase headroom,
 # predicted full-DSC runtime) in the job log.
 #
